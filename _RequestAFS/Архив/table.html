@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Координаты в .docx</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pizzip@3.0.4/dist/pizzip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.26.1/build/docxtemplater.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/file-saver/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+    <h1>Введите координаты и данные</h1>
+    
+    <!-- Форма для ввода координат -->
+    <form id="coordinatesForm">
+        <div>
+            <label for="point1">Точка 1 (Широта, Долгота):</label>
+            <input type="text" id="point1" aria-label="Введите координаты первой точки" oninput="updateRadioButtons()" required>
+        </div>
+        <div>
+            <label for="point2">Точка 2 (Широта, Долгота):</label>
+            <input type="text" id="point2" aria-label="Введите координаты второй точки" oninput="updateRadioButtons()" required>
+        </div>
+        <div>
+            <label for="point3">Точка 3 (Широта, Долгота):</label>
+            <input type="text" id="point3" aria-label="Введите координаты третьей точки" oninput="updateRadioButtons()" required>
+        </div>
+        <div>
+            <label for="point4">Точка 4 (Широта, Долгота):</label>
+            <input type="text" id="point4" aria-label="Введите координаты четвертой точки" oninput="updateRadioButtons()" required>
+        </div>
+        <div>
+            <label for="point5">Точка 5 (Широта, Долгота):</label>
+            <input type="text" id="point5" aria-label="Введите координаты пятой точки" oninput="updateRadioButtons()">
+        </div>
+        <div>
+            <label for="point6">Точка 6 (Широта, Долгота):</label>
+            <input type="text" id="point6" aria-label="Введите координаты шестой точки" oninput="updateRadioButtons()">
+        </div>
+
+        <!-- Форма для ввода дополнительных данных -->
+        <div>
+            <label for="objectName">Название объекта:</label>
+            <input type="text" id="objectName" aria-label="Введите название объекта" required>
+        </div>
+        <div>
+            <label for="clientName">Имя клиента:</label>
+            <input type="text" id="clientName" aria-label="Введите имя клиента" required>
+        </div>
+        <div>
+            <label for="terms">Условия:</label>
+            <textarea id="terms" aria-label="Введите условия" required></textarea>
+        </div>
+
+        <!-- Выбор исходного документа -->
+        <div>
+            <label for="fileInput">Выберите исходный .docx файл:</label>
+            <input type="file" id="fileInput" accept=".docx" required>
+        </div>
+
+        <button type="button" onclick="generateDocx()">Скачать документ</button>
+
+        <!-- Радио кнопки для точек 4, 5 и 6 (невидимые для пользователя, только программное управление) -->
+        <div>
+            <label>Выберите, сколько точек заполнено:</label><br>
+            <input type="radio" id="radio4" name="pointCount" value="4" disabled> 4 точки<br>
+            <input type="radio" id="radio5" name="pointCount" value="5" disabled> 5 точек<br>
+            <input type="radio" id="radio6" name="pointCount" value="6" disabled> 6 точек
+        </div>
+    </form>
+
+    <script>
+        function updateRadioButtons() {
+            let filledPoints = 0;
+
+            // Проверяем количество введенных координат
+            for (let i = 1; i <= 6; i++) {
+                const point = document.getElementById(`point${i}`).value.trim();
+                if (point !== '') {
+                    filledPoints++;
+                }
+            }
+
+            // Включаем радиокнопки в зависимости от количества заполненных точек
+            if (filledPoints === 6) {
+                document.getElementById('radio6').disabled = false;
+                document.getElementById('radio5').disabled = true;
+                document.getElementById('radio4').disabled = true;
+                document.getElementById('radio6').checked = true;
+            } else if (filledPoints === 5) {
+                document.getElementById('radio5').disabled = false;
+                document.getElementById('radio4').disabled = false;
+                document.getElementById('radio6').disabled = true;
+                document.getElementById('radio5').checked = true;
+            } else if (filledPoints === 4) {
+                document.getElementById('radio4').disabled = false;
+                document.getElementById('radio5').disabled = false;
+                document.getElementById('radio6').disabled = true;
+                document.getElementById('radio4').checked = true;
+            } else {
+                document.getElementById('radio4').disabled = true;
+                document.getElementById('radio5').disabled = true;
+                document.getElementById('radio6').disabled = true;
+            }
+        }
+
+        function generateDocx() {
+            const coordinates = {};
+            for (let i = 1; i <= 4; i++) {  // Перебираем только обязательные поля для точек
+                const point = document.getElementById(`point${i}`).value.trim();
+                if (!point) {
+                    alert(`Введите координаты для точки ${i}`);
+                    return;
+                }
+                const [lat, lon] = point.split(',').map(coord => coord.trim());
+                if (!lat || !lon) {
+                    alert(`Некорректные координаты для точки ${i}. Используйте формат: Широта, Долгота.`);
+                    return;
+                }
+                coordinates[`point${i}Lat`] = lat;
+                coordinates[`point${i}Lon`] = lon;
+            }
+
+            // Обработка точек 5 и 6 как необязательных
+            for (let i = 5; i <= 6; i++) {
+                const point = document.getElementById(`point${i}`).value.trim();
+                if (point) {
+                    const [lat, lon] = point.split(',').map(coord => coord.trim());
+                    if (!lat || !lon) {
+                        alert(`Некорректные координаты для точки ${i}. Используйте формат: Широта, Долгота.`);
+                        return;
+                    }
+                    coordinates[`point${i}Lat`] = lat;
+                    coordinates[`point${i}Lon`] = lon;
+                }
+            }
+
+            // Добавление новых данных
+            const objectName = document.getElementById('objectName').value.trim();
+            const clientName = document.getElementById('clientName').value.trim();
+            const terms = document.getElementById('terms').value.trim();
+
+            if (!objectName || !clientName || !terms) {
+                alert('Пожалуйста, заполните все обязательные поля!');
+                return;
+            }
+
+            // Добавляем новые данные в объект координат
+            coordinates.objectName = objectName;
+            coordinates.clientName = clientName;
+            coordinates.terms = terms;
+
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files.length) {
+                alert('Пожалуйста, выберите исходный .docx файл.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const arrayBuffer = e.target.result;
+                const zip = new PizZip(arrayBuffer);
+                const doc = new window.docxtemplater(zip);
+
+                // Передаем данные в шаблон
+                doc.setData(coordinates);
+
+                try {
+                    doc.render();  // Генерация документа с данными
+                } catch (error) {
+                    console.error(error);
+                    alert("Ошибка при генерации документа.");
+                    return;
+                }
+
+                const generatedDoc = doc.getZip().generate({ type: 'blob' });
+
+                // Скачиваем сгенерированный документ
+                saveAs(generatedDoc, "coordinates.docx");
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    </script>
+</body>
+</html>

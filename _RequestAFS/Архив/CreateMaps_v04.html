@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Статическая карта с полилинией</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        form {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #0073e6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #005bb5;
+        }
+        #staticMap {
+            width: 100%;
+            height: 450px;  /* Максимальная высота 450px */
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Координаты для отображения на статической карте</h1>
+    
+    <form id="coordinatesForm">
+        <label for="point1">Точка 1 (Широта, Долгота):</label>
+        <input type="text" id="point1" required placeholder="51.945918, 23.667086" value="51.945918, 23.667086">
+    
+        <label for="point2">Точка 2 (Широта, Долгота):</label>
+        <input type="text" id="point2" required placeholder="51.942490, 23.697079" value="51.942490, 23.697079">
+    
+        <label for="point3">Точка 3 (Широта, Долгота):</label>
+        <input type="text" id="point3" required placeholder="51.936412, 23.696725" value="51.936412, 23.696725">
+    
+        <label for="point4">Точка 4 (Широта, Долгота):</label>
+        <input type="text" id="point4" required placeholder="51.934313, 23.670978" value="51.934313, 23.670978">
+    
+        <label for="point5">Точка 5 (Широта, Долгота):</label>
+        <input type="text" id="point5" placeholder="51.934783, 23.663527" value="51.934783, 23.663527">
+    
+        <label for="point6">Точка 6 (Широта, Долгота):</label>
+        <input type="text" id="point6" placeholder="51.941393, 23.662108" value="51.941393, 23.662108">
+
+        <button type="submit">Показать статическую карту</button>
+        <div id="zoomButtons">
+            <button id="zoomMinus">-1</button>
+            <button id="zoomDefault">0</button>
+            <button id="zoomPlus">+1</button>
+        </div>
+    </form>
+
+    <!-- Статическое изображение карты -->
+    <div id="staticMap" style="display:none;">
+        <img id="staticMapImage" src="" alt="Статическая карта" />
+    </div>
+
+    <script>
+        let zoomOffset = 0; // Смещение масштаба
+
+        document.getElementById("coordinatesForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            const coordinates = {};
+
+            // Обработка обязательных точек
+            for (let i = 1; i <= 4; i++) {
+                const point = document.getElementById(`point${i}`).value.trim();
+                if (!point) {
+                    alert(`Введите координаты для точки ${i}`);
+                    return;
+                }
+                const [lat, lon] = point.split(',').map(coord => coord.trim());
+                if (!lat || !lon) {
+                    alert(`Некорректные координаты для точки ${i}. Используйте формат: Широта, Долгота.`);
+                    return;
+                }
+                coordinates[`point${i}Lat`] = lat;
+                coordinates[`point${i}Lon`] = lon;
+            }
+
+            // Обработка точек 5 и 6 как необязательных
+            for (let i = 5; i <= 6; i++) {
+                const point = document.getElementById(`point${i}`).value.trim();
+                if (point) {
+                    const [lat, lon] = point.split(',').map(coord => coord.trim());
+                    if (!lat || !lon) {
+                        alert(`Некорректные координаты для точки ${i}. Используйте формат: Широта, Долгота.`);
+                        return;
+                    }
+                    coordinates[`point${i}Lat`] = lat;
+                    coordinates[`point${i}Lon`] = lon;
+                }
+            }
+
+            // Логируем координаты для отладки
+            console.log("Координаты точек:", coordinates);
+
+            // Преобразуем координаты в массив точек
+            let points = [];
+            for (let i = 1; i <= 6; i++) {
+                if (coordinates[`point${i}Lat`] && coordinates[`point${i}Lon`]) {
+                    points.push([parseFloat(coordinates[`point${i}Lat`]), parseFloat(coordinates[`point${i}Lon`])]);
+                }
+            }
+
+            // Находим минимальные и максимальные значения широты и долготы
+            let latitudes = points.map(p => p[0]);
+            let longitudes = points.map(p => p[1]);
+
+            let minLat = Math.min(...latitudes);
+            let maxLat = Math.max(...latitudes);
+            let minLon = Math.min(...longitudes);
+            let maxLon = Math.max(...longitudes);
+
+            // Рассчитываем центр карты
+            let centerLatitude = (minLat + maxLat) / 2;
+            let centerLongitude = (minLon + maxLon) / 2;
+
+            // Рассчитываем размер карты (масштаб)
+            let latDiff = maxLat - minLat;
+            let lonDiff = maxLon - minLon;
+
+            // Увеличиваем область на 30%, чтобы точки не прижимались к краям
+            latDiff *= 1.3;
+            lonDiff *= 1.3;
+
+            // Логика для более точного расчёта масштаба
+            let zoomLevel;
+            const width = 450;  // Ширина карты
+            const height = 450; // Высота карты
+
+            const aspectRatio = width / height; // Соотношение сторон карты
+
+            // Если широта (latDiff) больше долготы (lonDiff), масштабируем по широте
+            if (latDiff / lonDiff > aspectRatio) {
+                zoomLevel = Math.round(Math.log2(180 / latDiff)); // Расчёт масштаба по широте
+            } else {
+                zoomLevel = Math.round(Math.log2(360 / lonDiff)); // Расчёт масштаба по долготе
+            }
+            
+            zoomLevel += zoomOffset; // Применяем смещение масштаба
+
+            // Формируем строку для полилинии
+            let polylinePoints = [...points, points[0]];
+            let polyline = `c:0000FF,w:5,${polylinePoints.map(p => `${p[1]},${p[0]}`).join(',')}`;
+
+            // Формируем URL для статической карты с полилинией и маркерами
+            let staticMapUrl = `https://static-maps.yandex.ru/1.x/?lang=ru_RU&ll=${centerLongitude},${centerLatitude}&size=${width},${height}&z=${zoomLevel}&l=map&pl=${polyline}&pt=${points.map((p, index) => `${p[1]},${p[0]},pm2blm${index + 1}`).join('~')}`;
+
+            // Логируем URL карты для отладки
+            console.log("URL статической карты:", staticMapUrl);
+
+            // Показываем статическое изображение
+            document.getElementById("staticMap").style.display = 'block';
+            document.getElementById("staticMapImage").src = staticMapUrl;  // Устанавливаем URL для изображения
+        });
+
+        // Обработчики кнопок масштаба
+        document.getElementById("zoomMinus").addEventListener("click", () => {
+            zoomOffset--;
+            console.log("Смещение масштаба уменьшено:", zoomOffset);
+        });
+
+        document.getElementById("zoomDefault").addEventListener("click", () => {
+            zoomOffset = 0;
+            console.log("Смещение масштаба сброшено:", zoomOffset);
+        });
+
+        document.getElementById("zoomPlus").addEventListener("click", () => {
+            zoomOffset++;
+            console.log("Смещение масштаба увеличено:", zoomOffset);
+        });
+    </script>
+
+</body>
+</html>

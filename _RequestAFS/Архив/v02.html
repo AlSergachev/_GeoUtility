@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Яндекс.Карты: Статическая карта с точками</title>
+</head>
+<body>
+
+<h2>Ввод координат точек</h2>
+<form id="coordinatesForm">
+    <label for="point1">Точка 1 (Широта, Долгота):</label><br>
+    <input type="text" id="point1" value="55.7558,37.6176"><br><br>
+
+    <label for="point2">Точка 2 (Широта, Долгота):</label><br>
+    <input type="text" id="point2" value="59.9343,30.3351"><br><br>
+
+    <label for="point3">Точка 3 (Широта, Долгота):</label><br>
+    <input type="text" id="point3" value="48.8566,2.3522"><br><br>
+
+    <label for="point4">Точка 4 (Широта, Долгота):</label><br>
+    <input type="text" id="point4" value="40.7128,-74.0060"><br><br>
+
+    <button type="button" onclick="generateMap()">Показать карту</button>
+</form>
+
+<div>
+    <h3>Результат:</h3>
+    <img id="mapImage" src="" alt="Статическая карта" />
+</div>
+
+<script>
+    function generateMap() {
+        // Получаем координаты из полей ввода
+        const point1 = document.getElementById("point1").value.split(',');
+        const point2 = document.getElementById("point2").value.split(',');
+        const point3 = document.getElementById("point3").value.split(',');
+        const point4 = document.getElementById("point4").value.split(',');
+
+        // Координаты для отображения на карте
+        const coordinates = [
+            {lat: point1[0], lon: point1[1]},
+            {lat: point2[0], lon: point2[1]},
+            {lat: point3[0], lon: point3[1]},
+            {lat: point4[0], lon: point4[1]}
+        ];
+
+        // Генерируем строку для рисования точек и соединяющих их линий
+        const pointsParam = coordinates.map((point, index) => 
+            `${point.lon},${point.lat},pm2dgl~${index + 1}`
+        ).join(',');
+
+        const pathParam = coordinates.map((point) => 
+            `${point.lon},${point.lat}`
+        ).join('~');
+
+        // Формируем URL для запроса к API
+        const apiUrl = `https://static-maps.yandex.ru/1.x/?ll=${coordinates[0].lon},${coordinates[0].lat}&size=600,400&z=5&l=map&pt=${pointsParam}&pl=${pathParam}&style=pm2dgl~red`;
+
+        // Устанавливаем изображение карты
+        document.getElementById("mapImage").src = apiUrl;
+    }
+</script>
+
+</body>
+</html>

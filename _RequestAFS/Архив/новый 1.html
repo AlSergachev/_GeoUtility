@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Яндекс.Карты с полигоном и нумерацией углов</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        #map {
+            width: 100%;
+            height: 400px;
+            margin-top: 20px;
+        }
+        form {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #0073e6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #005bb5;
+        }
+        .error {
+            color: red;
+            font-size: 14px;
+            margin-top: -8px;
+        }
+        .coordinates-list {
+            margin-top: 20px;
+        }
+        .coordinates-list label {
+            margin-right: 10px;
+        }
+    </style>
+    <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU&apikey=d949ac39-0fe3-4389-af92-ad4b65af12a0" type="text/javascript"></script>
+</head>
+<body>
+
+    <h1>Координаты для отображения на Яндекс.Карте</h1>
+    
+    <form id="coordinatesForm">
+        <div id="coordinatesList" class="coordinates-list">
+            <label for="point1">Точка 1 (Широта, Долгота):</label>
+            <input type="text" id="point1" placeholder="55.7558, 37.6176">
+        </div>
+
+        <button type="button" id="addPoint">Добавить точку</button>
+        <button type="submit">Показать карту</button>
+    </form>
+
+    <div id="map"></div>
+
+    <script>
+        document.getElementById("coordinatesForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            // Получаем все точки из формы
+            let points = [];
+            let errorMessages = [];
+
+            // Перебираем все поля ввода с точками
+            const inputs = document.querySelectorAll('input[type="text"]');
+            inputs.forEach((input, index) => {
+                let coords = input.value.split(',').map(coord => parseFloat(coord.trim()));
+
+                if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                    points.push(coords);
+                } else {
+                    errorMessages.push(`Точка ${index + 1}: Введите корректные координаты (широта, долгота).`);
+                }
+            });
+
+            // Если ошибок нет, показываем карту
+            if (errorMessages.length === 0) {
+                if (points.length < 2) {
+                    alert("Пожалуйста, введите хотя бы две правильные точки.");
+                    return;
+                }
+
+                ymaps.ready(init);
+
+                function init() {
+                    let map = new ymaps.Map('map', {
+                        center: points[0],
+                        zoom: 14
+                    });
+
+                    // Добавляем полигон на карту
+                    let polygon = new ymaps.Polygon([points], {}, {
+                        fillColor: '#0000FF',
+                        fillOpacity: 0.3,
+                        strokeColor: '#0000FF',
+                        strokeWidth: 3
+                    });
+                    map.geoObjects.add(polygon);
+
+                    // Добавляем нумерацию углов рядом с вершинами полигона
+                    points.forEach((point, index) => {
+                        let numberLabel = new ymaps.Placemark([point[0], point[1]], {
+                            hintContent: `Угол ${index + 1}`,
+                            balloonContent: `Угол ${index + 1}`
+                        }, {
+                            iconLayout: 'default#imageWithContent',
+                            iconImageSize: [0, 0],
+                            iconContent: `${index + 1}`,
+                            iconContentOffset: [-10, -30],
+                            iconContentFontSize: '16px',
+                            iconContentColor: '#000',
+                            iconContentBackgroundColor: 'rgba(255, 255, 255, 0.7)',
+                            iconContentPadding: '5px',
+                            zIndex: 1000
+                        });
+
+                        map.geoObjects.add(numberLabel);
+                    });
+
+                    // Масштабируем карту, чтобы все объекты были видны
+                    map.setBounds(map.geoObjects.getBounds(), { checkZoomRange: true });
+                }
+            } else {
+                alert(errorMessages.join('\n'));
+            }
+        });
+
+        // Функция для добавления новых полей ввода
+        let pointCounter = 1;
+        document.getElementById("addPoint").addEventListener("click", function() {
+            pointCounter++;
+            const newPointInput = document.createElement("div");
+            newPointInput.innerHTML = `
+                <label for="point${pointCounter}">Точка ${pointCounter} (Широта, Долгота):</label>
+                <input type="text" id="point${pointCounter}" placeholder="55.7558, 37.6176">
+            `;
+            document.getElementById("coordinatesList").appendChild(newPointInput);
+        });
+    </script>
+
+</body>
+</html>

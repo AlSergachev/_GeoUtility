@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Создание заявки на проведение АФС</title>
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.7/jquery.inputmask.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.20.0/docxtemplater.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7fa;
+            color: #333;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #2e3a59;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        form {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        label {
+            font-size: 16px;
+            margin-bottom: 5px;
+            color: #555;
+            display: block;
+        }
+
+        input, button {
+            padding: 12px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        input[type="text"], input[type="date"] {
+            background-color: #f9f9f9;
+        }
+
+        input[type="file"] {
+            padding: 5px;
+            background-color: #f9f9f9;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .form-row > div {
+            flex: 1;
+        }
+
+        #loadingSpinner {
+            display: none;
+            text-align: center;
+            color: #333;
+            font-size: 18px;
+            margin: 20px 0;
+        }
+
+        #downloadButton {
+            display: none;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px;
+            width: auto;
+            margin: 20px 0;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        #downloadButton:hover {
+            background-color: #0056b3;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 20px;
+            }
+
+            .form-row {
+                flex-direction: column;
+            }
+
+            input, button {
+                font-size: 18px;
+            }
+        }
+
+        .error {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .form-container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+		#zoomButtons {
+			display: flex;
+			justify-content: center;
+			gap: 10px;
+			margin: 10px 0;
+		}
+		#zoomButtons button {
+			background-color: transparent; /* Прозрачный фон */
+			color: #777; /* Серый текст */
+			border: none; /* Убираем рамку */
+			padding: 3px 6px; /* Минимальный отступ */
+			font-size: 0.8em; /* Маленький текст */
+			cursor: pointer;
+		}
+		#zoomButtons button:hover {
+			color: #555; /* Чуть более тёмный текст при наведении */
+		}
+		#zoomButtons button:active {
+			color: #333; /* Нажатая кнопка становится чуть ярче */
+		}
+        #staticMap {
+            width: 100%;
+            height: 450px;
+            margin-top: 20px;
+        }
+    </style>
+
+</head>
+<body>
+
+    <h1>Создание заявки на проведение АФС</h1>
+
+    <div class="form-container">
+        <form id="uploadForm">
+            <label for="city">Город:</label>
+            <input type="text" id="city" name="city" placeholder="Введите город"><br><br>
+
+            <label for="objectName">Название объекта:</label>
+            <input type="text" id="objectName" name="objectName" required placeholder="Введите название объекта"><br><br>
+
+            <label for="objectName">Заказчик:</label>
+            <input type="text" id="clientName" name="clientName" required placeholder="Введите наименование заказчика"><br><br>
+
+            <div class="form-row">
+                <div>
+                    <label for="startDate">Дата начала:</label>
+                    <input type="date" id="startDate" name="startDate" required><br><br>
+                </div>
+                <div>
+                    <label for="endDate">Дата окончания:</label>
+                    <input type="date" id="endDate" name="endDate" required><br><br>
+                </div>
+            </div>
+
+            <label for="position">Должность исполнителя:</label>
+            <input list="positionOptions" type="text" id="position" name="position" required placeholder="Введите должность исполнителя">
+            <datalist id="positionOptions">
+                <option value="геодезист">
+                <option value="начальник топогеодезической партии">
+            </datalist><br><br>
+
+            <label for="fullName">ФИО исполнителя:</label>
+            <input list="fullNameOptions" type="text" id="fullName" name="fullName" required placeholder="Введите ФИО исполнителя">
+            <datalist id="fullNameOptions">
+                <option value="Мамай В.А.">
+                <option value="Ровдо И.В.">
+            </datalist><br><br>
+
+            <label for="phone">Номер телефона исполнителя:</label>
+            <input list="phoneOptions" type="text" id="phone" name="phone" required placeholder="Введите номер телефона">
+            <datalist id="phoneOptions">
+                <option value="+375336011386">
+                <option value="+375295611413">
+            </datalist><br><br>
+
+            <!-- Координаты точек -->
+            <h3>Координаты точек:</h3>
+
+            <label for="point1">Точка 1 (Широта, Долгота):</label>
+        <input type="text" id="point1" placeholder="55.7558, 37.6176" aria-label="Введите координаты первой точки">
+        <div id="feedback1" class="feedback"></div>
+
+        <label for="point2">Точка 2 (Широта, Долгота):</label>
+        <input type="text" id="point2" placeholder="55.7600, 37.6200" aria-label="Введите координаты второй точки">
+        <div id="feedback2" class="feedback"></div>
+
+        <label for="point3">Точка 3 (Широта, Долгота):</label>
+        <input type="text" id="point3" placeholder="55.7500, 37.6250" aria-label="Введите координаты третьей точки">
+        <div id="feedback3" class="feedback"></div>
+
+        <label for="point4">Точка 4 (Широта, Долгота):</label>
+        <input type="text" id="point4" placeholder="55.7450, 37.6100" aria-label="Введите координаты четвёртой точки">
+        <div id="feedback4" class="feedback"></div>
+
+            <!-- Поле для выбора файла -->
+            <label for="docxFile">Выберите файл .docx:</label>
+            <input type="file" id="docxFile" name="docxFile" accept=".docx" required><br><br>
+
+            <button type="submit">Обработать</button>
+			<div id="zoomButtons">
+				<button id="zoomMinus" aria-label="Уменьшить масштаб">-1</button>
+				<button id="zoomDefault" aria-label="Масштаб по умолчанию">0</button>
+				<button id="zoomPlus" aria-label="Увеличить масштаб">+1</button>
+			</div>
+			
+			
+			
+        </form>
+		
+		<!-- Статическое изображение карты -->
+		<div id="staticMap" style="display:none;">
+			<img id="staticMapImage" src="" alt="Статическая карта" />
+		</div>
+		
+        <div id="loadingSpinner">Загрузка...</div>
+        <button id="downloadButton">Скачать измененный файл</button>
+        
+        <div id="errorMessages"></div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            const phoneInput = document.getElementById("phone");
+            const phoneMask = new Inputmask("+375 99 999 99 99");
+            phoneMask.mask(phoneInput);
+        });
+		
+		let zoomOffset = 0; // Смещение масштаба
+
+        document.getElementById("uploadForm").addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const objectName = document.getElementById("objectName").value;
+            const clientName = document.getElementById("clientName").value;
+            const startDate = document.getElementById("startDate").value;
+            const endDate = document.getElementById("endDate").value;
+            const position = document.getElementById("position").value;
+            const fullName = document.getElementById("fullName").value;
+            const phone = document.getElementById("phone").value;
+            const city = document.getElementById("city").value;
+            const fileInput = document.getElementById("docxFile");
+
+            const point1 = document.getElementById("point1").value.split(",");
+            const point2 = document.getElementById("point2").value.split(",");
+            const point3 = document.getElementById("point3").value.split(",");
+            const point4 = document.getElementById("point4").value.split(",");
+			
+			
+        // Очищаем сообщения обратной связи
+        for (let i = 1; i <= 4; i++) {
+            document.getElementById(`feedback${i}`).textContent = "";
+        }
+
+        // Получаем координаты точек из формы
+        let points = [
+            document.getElementById("point1").value,
+            document.getElementById("point2").value,
+            document.getElementById("point3").value,
+            document.getElementById("point4").value
+        ];
+
+        let errorMessages = [];
+        points = points.map((point, index) => {
+            let coords = point.split(',').map(coord => parseFloat(coord.trim()));
+            if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                return [coords[0], coords[1]];  // Сохраняем как массив [широта, долгота]
+            } else {
+                document.getElementById(`feedback${index + 1}`).textContent = "Введите корректные координаты (широта, долгота).";
+                return null;
+            }
+        }).filter(Boolean);
+
+        // Проверяем, что введено хотя бы три точки
+        if (points.length < 3) {
+            alert("Пожалуйста, введите хотя бы три правильные точки.");
+            return;
+        }
+
+        // Логируем координаты для отладки
+        console.log("Координаты точек:", points);
+
+        // Находим минимальные и максимальные значения широты и долготы
+        let latitudes = points.map(p => p[0]);
+        let longitudes = points.map(p => p[1]);
+
+        let minLat = Math.min(...latitudes);
+        let maxLat = Math.max(...latitudes);
+        let minLon = Math.min(...longitudes);
+        let maxLon = Math.max(...longitudes);
+
+        // Рассчитываем центр карты
+        let centerLatitude = (minLat + maxLat) / 2;
+        let centerLongitude = (minLon + maxLon) / 2;
+
+        // Рассчитываем размер карты (масштаб) так, чтобы только точки помещались на изображении
+        let latDiff = maxLat - minLat;
+        let lonDiff = maxLon - minLon;
+
+        // Увеличиваем область на 30%, чтобы точки не прижимались к краям
+        latDiff *= 1.3;
+        lonDiff *= 1.3;
+
+        // Логика для более точного расчёта масштаба
+        let zoomLevel;
+        const width = 450;  // Ширина карты уменьшена до 450px для вертикального отображения
+        const height = 450; // Высота карты не изменяется (оставлена максимально возможной)
+
+        const aspectRatio = width / height; // Соотношение сторон карты
+
+        // Если широта (latDiff) больше долготы (lonDiff), масштабируем по широте
+        if (latDiff / lonDiff > aspectRatio) {
+            zoomLevel = Math.round(Math.log2(180 / latDiff)); // Расчёт масштаба по широте
+        } else {
+            zoomLevel = Math.round(Math.log2(360 / lonDiff)); // Расчёт масштаба по долготе
+        }
+
+        zoomLevel += zoomOffset; // Применяем смещение масштаба
+
+        // Формируем строку для полилинии, добавляя первую точку в конец только для строки
+        let polylinePoints = [...points, points[0]];
+        let polyline = `c:0000FF,w:5,${polylinePoints.map(p => `${p[1]},${p[0]}`).join(',')}`;
+
+        // Формируем URL для статической карты с полилинией и маркерами
+        let staticMapUrl = `https://static-maps.yandex.ru/1.x/?lang=ru_RU&ll=${centerLongitude},${centerLatitude}&size=${width},${height}&z=${zoomLevel}&l=map&pl=${polyline}&pt=${points.map((p, index) => `${p[1]},${p[0]},pm2blm${index + 1}`).join('~')}`;
+
+        // Логируем URL карты для отладки
+        console.log("URL статической карты:", staticMapUrl);
+
+        // Показываем статическое изображение
+        document.getElementById("staticMap").style.display = 'block';
+        document.getElementById("staticMapImage").src = staticMapUrl;  // Устанавливаем URL для изображения
+
+            if (point1.length < 2 || point2.length < 2 || point3.length < 2 || point4.length < 2) {
+                alert("Убедитесь, что вы ввели координаты для всех точек в формате 'широта, долгота'.");
+                return;
+            }
+
+            const formatDate = (date) => {
+                const d = new Date(date);
+                const day = d.getDate().toString().padStart(2, '0');
+                const month = (d.getMonth() + 1).toString().padStart(2, '0');
+                const year = d.getFullYear();
+                return `${day}.${month}.${year}г.`;
+            };
+
+            const formattedTerms = `с ${formatDate(startDate)} по ${formatDate(endDate)}`;
+
+            document.getElementById("loadingSpinner").style.display = "block";
+
+            try {
+                const arrayBuffer = await readFile(fileInput.files[0]);
+                const zip = new PizZip(arrayBuffer);
+                const doc = new window.docxtemplater(zip);
+
+                doc.setData({
+                    objectName: objectName,
+                    clientName: clientName,
+                    terms: formattedTerms,
+                    position: position,
+                    fullName: fullName,
+                    phone: phone,
+                    city: city,
+                    point1Lat: point1[0].trim(),
+                    point1Lon: point1[1].trim(),
+                    point2Lat: point2[0].trim(),
+                    point2Lon: point2[1].trim(),
+                    point3Lat: point3[0].trim(),
+                    point3Lon: point3[1].trim(),
+                    point4Lat: point4[0].trim(),
+                    point4Lon: point4[1].trim()
+                });
+
+                doc.render();
+
+                const output = doc.getZip().generate({
+                    type: "blob",
+                    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                });
+
+                const out = await insertImageIntoDocx(output, staticMapUrl); 
+
+                document.getElementById("loadingSpinner").style.display = "none";
+                document.getElementById("downloadButton").style.display = "inline-block";
+
+                // Получаем имя исходного файла
+                const originalFilename = fileInput.files[0].name;
+                const baseFilename = originalFilename.replace(/\.docx$/, ''); // Убираем расширение .docx
+                const cityPart = city ? `_${city}` : '';
+                const downloadFilename = `${baseFilename}${cityPart}.docx`;
+
+                document.getElementById("downloadButton").onclick = function() {
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(out);
+                    link.download = downloadFilename;
+                    link.click();
+                };
+
+            } catch (error) {
+                console.error("Ошибка при обработке документа:", error);
+                alert("Ошибка при обработке документа. Попробуйте другой файл.");
+                document.getElementById("loadingSpinner").style.display = "none";
+            }
+        });
+
+        function readFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (error) => reject(error);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+	
+    // Helper functions
+
+    async function insertImageIntoDocx(docxBlob, imageUrl) {
+    try {
+        const imageBlob = await fetch(imageUrl).then(res => res.blob());
+        const imageData = await readFileAsBase64(imageBlob);
+
+        const docxArrayBuffer = await docxBlob.arrayBuffer();
+        const zip = new JSZip();
+        await zip.loadAsync(docxArrayBuffer);
+
+        const imagePath = 'word/media/image1.png';
+        zip.file(imagePath, base64ToUint8Array(imageData));
+
+        const relsPath = 'word/_rels/document.xml.rels';
+        const relsXml = await zip.file(relsPath).async('string');
+        const relId = 'rIdImage1';
+        const newRelsXml = relsXml.replace('</Relationships>', `
+            <Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png" />
+        </Relationships>`);
+        zip.file(relsPath, newRelsXml);
+
+        const documentXmlPath = 'word/document.xml';
+        const documentXml = await zip.file(documentXmlPath).async('string');
+        const newXml = documentXml.replace(
+            '</w:body>', 
+            `<w:p>
+                <w:pPr>
+                    <w:jc w:val="center"/>
+                </w:pPr>
+                <w:r>
+                    <w:drawing>
+                        <wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
+                            <wp:extent cx="6191250" cy="6191250"/>
+                            <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                                <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                                    <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                                        <pic:blipFill>
+                                            <a:blip r:embed="${relId}" />
+                                            <a:stretch>
+                                                <a:fillRect/>
+                                            </a:stretch>
+                                        </pic:blipFill>
+                                        <pic:spPr>
+                                            <a:xfrm>
+                                                <a:off x="0" y="0"/>
+                                                <a:ext cx="6191250" cy="6191250"/>
+                                            </a:xfrm>
+                                            <a:prstGeom prst="rect">
+                                                <a:avLst/>
+                                            </a:prstGeom>
+                                        </pic:spPr>
+                                    </pic:pic>
+                                </a:graphicData>
+                            </a:graphic>
+                        </wp:inline>
+                    </w:drawing>
+                </w:r>
+            </w:p></w:body>`
+        );
+        zip.file(documentXmlPath, newXml);
+
+        const outputBlob = await zip.generateAsync({
+            type: 'blob',
+            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        });
+        return outputBlob;
+    } catch (error) {
+        console.error('Error processing the document:', error);
+        throw error;
+    }
+}
+
+    function readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function base64ToUint8Array(base64) {
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+}    
+
+
+    // Обработчики кнопок масштаба
+    document.getElementById("zoomMinus").addEventListener("click", () => {
+        zoomOffset--;
+        console.log("Смещение масштаба уменьшено:", zoomOffset);
+    });
+
+    document.getElementById("zoomDefault").addEventListener("click", () => {
+        zoomOffset = 0;
+        console.log("Смещение масштаба сброшено:", zoomOffset);
+    });
+
+    document.getElementById("zoomPlus").addEventListener("click", () => {
+        zoomOffset++;
+        console.log("Смещение масштаба увеличено:", zoomOffset);
+    });
+		
+    </script>
+
+</body>
+</html>

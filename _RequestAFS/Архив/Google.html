@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Карты с полигоном</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        #map {
+            width: 100%;
+            height: 400px;
+            margin-top: 20px;
+        }
+        #staticMap {
+            width: 100%;
+            height: 400px;
+            margin-top: 20px;
+            display: none; /* Статическое изображение по умолчанию скрыто */
+        }
+        form {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #0073e6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #005bb5;
+        }
+    </style>
+    <!-- Подключение Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=ВАШ_API_КЛЮЧ&callback=initMap" async defer></script>
+</head>
+<body>
+
+    <h1>Координаты для отображения на Google Карте</h1>
+    
+    <form id="coordinatesForm">
+        <label for="point1">Точка 1 (Широта, Долгота):</label>
+        <input type="text" id="point1" placeholder="55.7558, 37.6176"><br><br>
+
+        <label for="point2">Точка 2 (Широта, Долгота):</label>
+        <input type="text" id="point2" placeholder="55.7600, 37.6200"><br><br>
+
+        <label for="point3">Точка 3 (Широта, Долгота):</label>
+        <input type="text" id="point3" placeholder="55.7500, 37.6250"><br><br>
+
+        <label for="point4">Точка 4 (Широта, Долгота):</label>
+        <input type="text" id="point4" placeholder="55.7450, 37.6100"><br><br>
+
+        <button type="submit">Показать карту</button>
+    </form>
+
+    <div id="map"></div>
+
+    <!-- Статическое изображение карты -->
+    <div id="staticMap">
+        <img id="staticMapImage" src="" alt="Статическая карта" />
+    </div>
+
+    <script>
+        let map;
+        let polygon;
+        let points = [];
+
+        // Инициализация карты
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 14,
+                center: { lat: 55.7558, lng: 37.6176 }, // Стартовый центр карты (по умолчанию — Москва)
+            });
+        }
+
+        // Обработчик отправки формы
+        document.getElementById("coordinatesForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            // Получаем координаты точек из формы
+            points = [
+                document.getElementById("point1").value,
+                document.getElementById("point2").value,
+                document.getElementById("point3").value,
+                document.getElementById("point4").value
+            ];
+
+            // Преобразуем строки в массивы с координатами
+            let errorMessages = [];
+            points = points.map((point, index) => {
+                let coords = point.split(',').map(coord => parseFloat(coord.trim()));
+                if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                    return { lat: coords[0], lng: coords[1] };
+                } else {
+                    errorMessages.push(`Точка ${index + 1}: Введите корректные координаты (широта, долгота).`);
+                    return null;
+                }
+            }).filter(Boolean);
+
+            // Проверяем, что все координаты корректны
+            if (errorMessages.length > 0) {
+                alert(errorMessages.join('\n'));
+                return;
+            }
+
+            // Проверяем, что введено хотя бы две точки
+            if (points.length < 2) {
+                alert("Пожалуйста, введите хотя бы две правильные точки.");
+                return;
+            }
+
+            // Создаём полигон
+            polygon = new google.maps.Polygon({
+                paths: points,
+                strokeColor: "#0000FF",
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: "#0000FF",
+                fillOpacity: 0.35,
+            });
+
+            // Добавляем полигон на карту
+            polygon.setMap(map);
+
+            // Масштабируем карту, чтобы полигон был виден
+            let bounds = new google.maps.LatLngBounds();
+            points.forEach(function(point) {
+                bounds.extend(point);
+            });
+            map.fitBounds(bounds);
+
+            // Отображаем статическое изображение карты
+            let staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?size=650x450&zoom=14&markers=color:blue|${points.map(p => `${p.lat},${p.lng}`).join('|')}&key=ВАШ_API_КЛЮЧ`;
+            document.getElementById("staticMap").style.display = 'block';  // Показываем статическое изображение
+            document.getElementById("staticMapImage").src = staticMapUrl;  // Устанавливаем URL для изображения
+        });
+    </script>
+
+</body>
+</html>

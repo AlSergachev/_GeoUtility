@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта с точками</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #map {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Получить карту по координатам</h1>
+<form id="coordinatesForm">
+    <label for="lat1">Широта 1:</label>
+    <input type="text" id="lat1" required><br><br>
+    
+    <label for="lng1">Долгота 1:</label>
+    <input type="text" id="lng1" required><br><br>
+    
+    <label for="lat2">Широта 2:</label>
+    <input type="text" id="lat2" required><br><br>
+    
+    <label for="lng2">Долгота 2:</label>
+    <input type="text" id="lng2" required><br><br>
+
+    <label for="lat3">Широта 3:</label>
+    <input type="text" id="lat3" required><br><br>
+
+    <label for="lng3">Долгота 3:</label>
+    <input type="text" id="lng3" required><br><br>
+
+    <label for="lat4">Широта 4:</label>
+    <input type="text" id="lat4" required><br><br>
+
+    <label for="lng4">Долгота 4:</label>
+    <input type="text" id="lng4" required><br><br>
+
+    <button type="submit">Показать карту</button>
+</form>
+
+<div id="map">
+    <img id="mapImage" src="" alt="Карта" style="display:none; width:600px; height:300px;">
+</div>
+
+<script>
+document.getElementById('coordinatesForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+
+    const coordinates = [
+        [parseFloat(document.getElementById('lat1').value), parseFloat(document.getElementById('lng1').value)],
+        [parseFloat(document.getElementById('lat2').value), parseFloat(document.getElementById('lng2').value)],
+        [parseFloat(document.getElementById('lat3').value), parseFloat(document.getElementById('lng3').value)],
+        [parseFloat(document.getElementById('lat4').value), parseFloat(document.getElementById('lng4').value)]
+    ];
+
+    // Находим центр между всеми точками
+    const centerLat = (coordinates[0][0] + coordinates[1][0] + coordinates[2][0] + coordinates[3][0]) / 4;
+    const centerLng = (coordinates[0][1] + coordinates[1][1] + coordinates[2][1] + coordinates[3][1]) / 4;
+
+    // Задаем параметры карты
+    const zoom = 10; // Уровень масштабирования
+    const size = '600,300'; // Размер изображения
+
+    // Формируем метки и линии для карты
+    let marks = '';
+    let lines = '';
+    
+    coordinates.forEach((coord, index) => {
+        marks += &pt=${coord[1]},${coord[0]},pm2rdl~${coord[1]},${coord[0]}~${index + 1};
+        if (index > 0) {
+            lines += ~${coordinates[index - 1][1]},${coordinates[index - 1][0]};
+        }
+    });
+
+    // Добавляем линию между последней и первой точкой
+    lines += ~${coordinates[0][1]},${coordinates[0][0]};
+
+    // Формируем URL для запроса к Яндекс.Карты Static API
+    const mapUrl = https://static-maps.yandex.ru/1.x/?ll=${centerLng},${centerLat}&z=${zoom}&size=${size}&l=map${marks}&pl=${lines};
+
+    // Устанавливаем изображение карты
+    const mapImage = document.getElementById('mapImage');
+    mapImage.src = mapUrl;
+    mapImage.style.display = 'block';
+});
+</script>
+
+</body>
+</html>

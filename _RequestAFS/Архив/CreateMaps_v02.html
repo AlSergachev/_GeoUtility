@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Статическая карта с точками</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        form {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #0073e6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #005bb5;
+        }
+        #staticMap {
+            width: 100%;
+            height: 450px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Координаты для отображения на статической карте</h1>
+    
+    <form id="coordinatesForm">
+        <label for="point1">Точка 1 (Широта, Долгота):</label>
+        <input type="text" id="point1" placeholder="55.7558, 37.6176"><br><br>
+
+        <label for="point2">Точка 2 (Широта, Долгота):</label>
+        <input type="text" id="point2" placeholder="55.7600, 37.6200"><br><br>
+
+        <label for="point3">Точка 3 (Широта, Долгота):</label>
+        <input type="text" id="point3" placeholder="55.7500, 37.6250"><br><br>
+
+        <label for="point4">Точка 4 (Широта, Долгота):</label>
+        <input type="text" id="point4" placeholder="55.7450, 37.6100"><br><br>
+
+        <button type="submit">Показать статическую карту</button>
+    </form>
+
+    <!-- Статическое изображение карты -->
+    <div id="staticMap" style="display:none;">
+        <img id="staticMapImage" src="" alt="Статическая карта" />
+    </div>
+
+    <script>
+        document.getElementById("coordinatesForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            // Получаем координаты точек из формы
+            let points = [
+                document.getElementById("point1").value,
+                document.getElementById("point2").value,
+                document.getElementById("point3").value,
+                document.getElementById("point4").value
+            ];
+
+            // Преобразуем строки в массивы с координатами
+            let errorMessages = [];
+            points = points.map((point, index) => {
+                let coords = point.split(',').map(coord => parseFloat(coord.trim()));
+                if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                    return [coords[0], coords[1]];  // Сохраняем как массив [широта, долгота]
+                } else {
+                    errorMessages.push(`Точка ${index + 1}: Введите корректные координаты (широта, долгота).`);
+                    return null;
+                }
+            }).filter(Boolean);
+
+            // Проверяем, что все координаты корректны
+            if (errorMessages.length > 0) {
+                alert(errorMessages.join('\n'));
+                return;
+            }
+
+            // Проверяем, что введено хотя бы две точки
+            if (points.length < 2) {
+                alert("Пожалуйста, введите хотя бы две правильные точки.");
+                return;
+            }
+
+            // Логируем координаты для отладки
+            console.log("Координаты точек:", points);
+
+            // Находим минимальные и максимальные значения широты и долготы
+            let latitudes = points.map(p => p[0]);
+            let longitudes = points.map(p => p[1]);
+
+            let minLat = Math.min(...latitudes);
+            let maxLat = Math.max(...latitudes);
+            let minLon = Math.min(...longitudes);
+            let maxLon = Math.max(...longitudes);
+
+            // Рассчитываем центр карты
+            let centerLatitude = (minLat + maxLat) / 2;
+            let centerLongitude = (minLon + maxLon) / 2;
+
+            // Рассчитываем размер карты (масштаб) так, чтобы только точки помещались на изображении
+            let latDiff = maxLat - minLat;
+            let lonDiff = maxLon - minLon;
+
+            // Увеличиваем область на 10%, чтобы точки не прижимались к краям
+            latDiff *= 1.1;
+            lonDiff *= 1.1;
+
+            // Логика для более точного расчёта масштаба
+            let zoomLevel;
+            const width = 650; // Ширина карты в пикселях
+            const height = 450; // Высота карты в пикселях
+
+            // Если широта (latDiff) больше долготы (lonDiff), масштабируем по широте
+            if (latDiff / lonDiff > 1.0) {
+                zoomLevel = Math.round(Math.log2(180 / latDiff)); // Расчёт масштаба по широте
+            } else {
+                zoomLevel = Math.round(Math.log2(360 / lonDiff)); // Расчёт масштаба по долготе
+            }
+
+            // Генерация URL для статического изображения с маркерами с нумерацией
+            let staticMapUrl = `https://static-maps.yandex.ru/1.x/?lang=ru_RU&ll=${centerLongitude},${centerLatitude}&size=650,450&z=${zoomLevel}&l=map&pt=${points.map((p, index) => {
+                return `${p[1]},${p[0]},pm2blm${index + 1}`;  // Добавляем число как метку
+            }).join('~')}`;
+
+			// Логируем данные маштабирования для отладки
+			console.log("latDiff / lonDiff = ", latDiff / lonDiff);
+			console.log("latDiff = ", latDiff);
+			console.log("lonDiff = ", lonDiff);
+			console.log("zoomLevel = ", zoomLevel);
+
+
+            // Логируем URL карты для отладки
+            console.log("URL статической карты:", staticMapUrl);
+
+            // Показываем статическое изображение
+            document.getElementById("staticMap").style.display = 'block';
+            document.getElementById("staticMapImage").src = staticMapUrl;  // Устанавливаем URL для изображения
+        });
+    </script>
+
+</body>
+</html>

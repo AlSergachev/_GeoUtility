@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Docx2Base64</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7fa;
+            color: #333;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #2e3a59;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-container {
+            max-width: 1050px;
+            margin: 0 auto;
+			height: 100%;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        input, button {
+            padding: 12px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            margin-top: 20px;
+            resize: vertical;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #loadingSpinner {
+            display: none;
+            text-align: center;
+            color: #007bff;
+            font-size: 18px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Convert DOCX Files to Base64</h1>
+    <div class='form-container'>
+        <input type='file' id='fileInput' accept='.docx' multiple>
+        <button id='convertButton'>Convert to Base64</button>
+        <div id='loadingSpinner'>Processing files, please wait...</div>
+        <textarea id='resultText' rows='10' readonly style="height: 600px;"></textarea>
+        <button id='copyButton'>Copy Text</button>
+    </div>
+
+    <script>
+        document.getElementById('convertButton').addEventListener('click', async () => {
+            const fileInput = document.getElementById('fileInput');
+            const resultText = document.getElementById('resultText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            
+            if (!fileInput.files.length) {
+                alert('Please select one or more DOCX files.');
+                return;
+            }
+
+            loadingSpinner.style.display = 'block';
+            let documents = {};
+
+            for (const file of fileInput.files) {
+                try {
+                    const base64 = await fileToBase64(file);
+                    const fileName = file.name.split('.')[0]; // Extract file name without extension
+                    documents[fileName] = `data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,${base64}`;
+                } catch (error) {
+                    alert(`Error processing file: ${file.name}`);
+                }
+            }
+
+            loadingSpinner.style.display = 'none';
+            // Convert the documents object to a string with single quotes
+            const documentsString = JSON.stringify(documents, null, 4).replace(/"/g, "'").replace(/\n}/, ",\n}");
+            resultText.value = `const documents = ${documentsString};`;
+        });
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = (error) => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        document.getElementById('copyButton').addEventListener('click', () => {
+            const resultText = document.getElementById('resultText');
+            resultText.select();
+            document.execCommand('copy');
+            alert('Text copied to clipboard!');
+        });
+    </script>
+</body>
+</html>
