@@ -1,0 +1,632 @@
+<!--
+    Разработчик: Александр Сергачёв (@al_sergachev)
+    Дата: 14.01.2024
+    Описание: ObjDrop_v01.01 - это программа, предназначеная для создания скрипта для вставки точечных 
+    объектов в чертеж программы AutoCad из данных файла формата .txt
+    
+    Пример исходных данных:
+
+    pt0,5930073.4683,2243828.0890,174.2068,znak
+    pt1,5930073.2932,2243823.9226,174.1503,op
+    pt2,5930074.9458,2243820.1742,174.1408,kol
+
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ObjDrop</title>
+    <link rel="icon" href="./_01.ico" type="image/x-icon">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7fa;
+            color: #333;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            font-size: 24px;
+            text-align: center;
+            color: #2e3a59;
+        }
+
+        label {
+            font-size: 18px;
+            color: #555;
+            display: block;
+            padding: 5px;
+        }
+
+        select {
+            font-size: 18px;
+            padding: 5px;
+            color: #555;
+            display: block;
+            width: 220px;
+        }
+
+        .form-container {
+            max-width: 950px;
+            margin: 0 auto;
+            height: 95%;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        input,
+        button {
+            padding: 12px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+
+        .signature {
+            position: fixed;
+            bottom: 10px;
+            right: 20px;
+            font-size: 12px;
+            color: #6395ca;
+            z-index: 1000;
+        }
+
+        .outer-container {
+            margin: 10px auto;
+            padding: 10px;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            gap: 40px;
+            display: flex;
+        }
+
+        .inner-container {
+            margin: 0px auto;
+            background-color: white;
+            display: flex;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Вставляйте точечные объекты по координатам</h1>
+    <div class="form-container">
+        <div class="outer-container">
+            <div class="inner-container">
+                <label for="architecture">Архитектура:</label>
+            </div>
+            <div class="inner-container">
+                <select id="architecture">
+                    <option value="Минская обл.">Минская обл.</option>
+                    <option value="Минск">г.Минск</option>
+                    <option value="Витебская обл.">Витебская обл.</option>
+                    <option value="Брестская обл.">Брестская обл.</option>
+                    <option value="Гродненская обл.">Гродненская обл.</option>
+                    <option value="Гомельская обл.">Гомельская обл.</option>
+                    <option value="Могилёвская обл.">Могилёвская обл.</option>
+                    <option value="Полоцк">Полоцк</option>
+                    <option value="Орша">Орша</option>
+                    <option value="Бобруйск" disabled>Бобруйск</option>
+                </select>
+            </div>
+        </div>
+        <input type="file" id="fileInput" accept=".txt">
+        <button id="processingButton">Обработать</button>
+        <textarea id="resultText" rows='10' readonly style="height: 550px;"
+            placeholder="Результаты появятся здесь..."></textarea>
+        <button id="downloadButton" style="margin-top: 15px; display:none">Скачать скрипт</button>
+    </div>
+    <div class="signature">&copy; 2025 @al_sergachev</div>
+
+
+
+
+    <script>
+        // Правила валидации
+        const VALIDATION_REGEX = /^pt\d+,\d+\.\d+,\d+\.\d+,\d+\.\d+,.*$/;
+
+        // Архитектуры и их значения
+        const architectureData = {
+            "Минск": {
+                kol: "g5_117z",
+                op: "g5_108a",
+                pod: "g5_108a",
+                znak: "g5_206_3",
+                tua: "g5_390_8",
+                bmv: "g5_140_2",
+                skaf: "g5_113c",
+                ku: "g5_394",
+                el: "g5_390_5",
+                fr: "g5_388_3",
+                der: "g5_388_1",
+                ber: "g5_390_2",
+                kolod: "g5_296",
+                kov: "g5_122_7",
+                gaz: "g5_121_7c",
+                kolonok: "g5_304_2",
+                stolb: "g5_108a",
+                livn: "g5_128a",
+                otjk: "g5_106_2",
+                skv: "g5_295",
+                svetof: "g5_210_1c",
+                svet: "g5_207_1",
+                sos: "g5_390_6"
+            },
+
+            "Минская обл.": {
+                kol: "g5_117z",
+                op: "g5_108a",
+                pod: "g5_108a",
+                znak: "g5_206_3",
+                tua: "g5_390_8",
+                bmv: "g5_140_2",
+                skaf: "g5_113c",
+                ku: "g5_394",
+                el: "g5_390_5",
+                fr: "g5_388_3",
+                der: "g5_388_1",
+                ber: "g5_390_2",
+                kolod: "g5_296",
+                kov: "g5_122_7",
+                gaz: "g5_121_7c",
+                kolonok: "g5_304_2",
+                stolb: "g5_108a",
+                livn: "g5_128a",
+                otjk: "g5_106_2",
+                skv: "g5_295",
+                svetof: "g5_210_1c",
+                svet: "g5_207_1",
+                sos: "g5_390_6"
+            },
+
+            "Брестская обл.": {
+                kol: "g5_117z",
+                op: "g5_108a",
+                pod: "g5_108a",
+                znak: "g5_206_3",
+                tua: "g5_390_8",
+                bmv: "g5_140_2",
+                skaf: "g5_113c",
+                ku: "g5_394",
+                el: "g5_390_5",
+                fr: "g5_388_3",
+                der: "g5_388_1",
+                ber: "g5_390_2",
+                kolod: "g5_296",
+                kov: "g5_122_7",
+                gaz: "g5_121_7c",
+                kolonok: "g5_304_2",
+                stolb: "g5_108a",
+                livn: "g5_128a",
+                otjk: "g5_106_2",
+                skv: "g5_295",
+                svetof: "g5_210_1c",
+                svet: "g5_207_1",
+                sos: "g5_390_6"
+            },
+
+            "Витебская обл.": {
+                kol: "117_3",
+                znak: "206_3",
+                tua: "Дерево-туя",
+                bmv: "140_2",
+                skaf: "g5_113c",
+                ku: "394",
+                el: "Дерево_ЕЛЬ",
+                fr: "Дерево_ФРУКТОВОЕ",
+                der: "Дерево_ШИРОКОЛИСТ",
+                ber: "390_2",
+                kolod: "Колодецпитьевой",
+                kov: "g5_122_7",
+                gaz: "g5_121_7c",
+                kolonok: "Колонка_2",
+                stolb: "g5_108a",
+                livn: "Решеткаливневая",
+                svetof: "207",
+                svet: "110_2",
+                sos: "Дерево_СОСНА"
+            },
+
+            "Орша": {
+                kol: "117_3",
+                znak: "206_3",
+                tua: "Дерево-туя",
+                bmv: "140_2",
+                skaf: "g5_113c",
+                ku: "394",
+                el: "Дерево_ЕЛЬ",
+                fr: "Дерево_ФРУКТОВОЕ",
+                der: "Дерево_ШИРОКОЛИСТ",
+                ber: "390_2",
+                kolod: "Колодецпитьевой",
+                kov: "g5_122_7",
+                gaz: "g5_121_7c",
+                kolonok: "Колонка_2",
+                stolb: "g5_108a",
+                livn: "Решеткаливневая",
+                svetof: "207",
+                svet: "110_2",
+                sos: "Дерево_СОСНА"
+            },
+
+            "Полоцк": {
+                kol: "117_3",
+                znak: "206_3",
+                tua: "Дерево-туя",
+                bmv: "140_2",
+                skaf: "g5_113c",
+                ku: "394",
+                el: "Дерево_ЕЛЬ",
+                fr: "Дерево_ФРУКТОВОЕ",
+                der: "Дерево_ШИРОКОЛИСТ",
+                ber: "390_2",
+                kolod: "Колодецпитьевой",
+                kov: "g5_122_7",
+                gaz: "g5_121_7c",
+                kolonok: "Колонка_2",
+                stolb: "g5_108a",
+                livn: "Решеткаливневая",
+                svetof: "207",
+                svet: "110_2",
+                sos: "Дерево_СОСНА"
+            },
+
+            "Гродненская обл.": {
+                kol: "T_04.01.01",
+                op: "T_04.07.02.n",
+                pod: "T_03.32.01",
+                znak: "T_06.18.03",
+                tua: "T_11.24.04",
+                bmv: "T_03.44.02",
+                skaf: "T_03.40.02",
+                ku: "T_11.25",
+                el: "T_11.24.05",
+                fr: "T_11.24.03",
+                der: "T_11.24.01",
+                ber: "T_11.24.02",
+                kolod: "T_08.44.02",
+                kov: "T_04.05.04",
+                gaz: "T_04.05.06",
+                kolonok: "T_08.53.02",
+                stolb: "T_03.32.01",
+                livn: "T_04.02.01",
+                skv: "T_08.46",
+                svetof: "T_06.19.01",
+                svet: "T_03.34.01.1",
+                sos: "T_11.24.06"
+            },
+
+            "Гомельская обл.": {
+                kol: "g5_117",
+                op: "g5_108a",
+                pod: "g5_108a",
+                znak: "g5_206_3",
+                tua: "g5_390_8",
+                bmv: "g5_140_2",
+                skaf: "g5_113c",
+                ku: "g5_394",
+                el: "g5_390_5",
+                fr: "g5_388_3",
+                der: "g5_388_1",
+                ber: "g5_390_2",
+                kolod: "g5_295",
+                kov: "g5_122_7",
+                gaz: "g5_121_7c",
+                kolonok: "g5_304_2",
+                stolb: "g5_108a",
+                livn: "g5_128a",
+                otjk: "g5_106_2",
+                skv: "g5_295",
+                svetof: "g5_207_1",
+                svet: "g5_110_1c",
+                sos: "g5_390_6"
+            },
+
+            "Минск": {
+                kol: "T_04.01.01",
+                op: "T_04.07.02.n",
+                pod: "T_03.32.01",
+                znak: "T_06.18.03",
+                tua: "T_11.24.04",
+                bmv: "T_03.44.02",
+                skaf: "T_03.40.02",
+                ku: "T_11.25",
+                el: "T_11.24.05",
+                fr: "T_11.24.03",
+                der: "T_11.24.01",
+                ber: "T_11.24.02",
+                kolod: "T_08.44.02",
+                kov: "T_04.05.01",
+                kolonok: "T_08.53.02",
+                stolb: "T_03.32.01",
+                livn: "T_04.02.01",
+                skv: "T_08.46",
+                svetof: "T_06.19.01",
+                svet: "T_03.34.01.1",
+                sos: "T_11.24.06"
+            },
+
+            "Могилёвская обл.": {
+                kol: "g5_117",
+                op: "g5_108a",
+                pod: "g5_108a",
+                znak: "g5_206_3",
+                tua: "g5_390_8",
+                bmv: "g5_140_2",
+                skaf: "g5_113c",
+                ku: "g5_394",
+                el: "g5_390_5",
+                fr: "g5_388_3",
+                der: "g5_388_1",
+                ber: "g5_390_2",
+                kolod: "g5_295",
+                kov: "g5_122_7",
+                gaz: "g5_121_7c",
+                kolonok: "g5_304_2",
+                stolb: "g5_108a",
+                livn: "g5_128a",
+                otjk: "g5_106_2",
+                skv: "g5_295",
+                svetof: "g5_207_1",
+                svet: "g5_110_1c",
+                sos: "g5_390_6"
+            },
+            // Добавьте аналогичные записи для других архитектур
+        };
+
+        /**
+         * Проверяет содержимое файла построчно.
+         * @param {string} content - Содержимое загруженного файла.
+         * @returns {string[]} Массив сообщений об ошибках или подтверждения успешной валидации.
+         */
+        function validateDocument(content) {
+            const lines = content.split('\n');
+            const errors = [];
+
+            lines.forEach((line, index) => {
+                const cleanedLine = line.replace(/\r$/, '').trim();
+                if (cleanedLine && !VALIDATION_REGEX.test(cleanedLine)) {
+                    const errorDetails = getErrorDetails(cleanedLine);
+                    errors.push(`Строка ${index + 1}: Неверный формат -> "${cleanedLine}". ${errorDetails}`);
+                }
+            });
+
+            if (errors.length === 0) {
+                return ['Документ валиден.'];
+            } else {
+                return errors;
+            }
+        }
+
+        /**
+         * Детализирует, что не так с конкретной строкой.
+         * @param {string} line - Строка для анализа.
+         * @returns {string} Описание проблемы.
+         */
+        function getErrorDetails(line) {
+            const parts = line.split(',');
+
+            if (!line.startsWith('pt')) {
+                return 'Строка не начинается с "pt", за которым следует число.';
+            }
+
+            if (parts.length !== 5) {
+                return 'Строка не содержит ровно 5 значений, разделённых запятыми.';
+            }
+
+            if (!/^pt\d+$/.test(parts[0])) {
+                return 'Первая часть не соответствует формату "pt", за которым следует число.';
+            }
+
+            for (let i = 1; i <= 3; i++) {
+                if (!/^\d+\.\d+$/.test(parts[i])) {
+                    return `Значение ${i + 1}-го столбца не является действительным десятичным числом.`;
+                }
+            }
+
+            return 'Неизвестная ошибка формата.';
+        }
+
+        /**
+         * Обрабатывает содержимое файла, чтобы создать отфильтрованный массив данных.
+         * @param {string} fileContent - Содержимое загруженного файла.
+         * @returns {Array} Обработанный массив данных.
+         */
+        function processFileContent(fileContent) {
+            const lines = fileContent.split('\n'); // Разбиваем на строки
+            const data = [];
+
+            lines.forEach((line) => {
+                const cleanedLine = line.replace(/\r$/, '').trim(); // Очищаем каждую строку
+                if (!cleanedLine) return; // Пропускаем пустые строки
+
+                const parts = cleanedLine.split(','); // Разбиваем строку на части
+                if (parts.length === 5) {
+                    const pointData = {
+                        pointNumber: parseInt(parts[0].replace('pt', ''), 10), // Номер точки
+                        latitude: parseFloat(parts[1]), // Широта
+                        longitude: parseFloat(parts[2]), // Долгота
+                        height: parseFloat(parts[3]), // Высота
+                        code: parts[4], // Код
+                    };
+                    data.push(pointData);
+                }
+            });
+
+            console.log('Начальные данные:', data); // Логируем начальный массив
+
+            // Убираем номер точки и высоту
+            const processedData = data.map(({ latitude, longitude, code }) => ({
+                latitude,
+                longitude,
+                code,
+            }));
+
+            console.log('Обработанные данные:', processedData); // Логируем обработанный массив
+            return processedData;
+        }
+
+        /**
+         * Заменяет третий столбец массива processedData соответствующими значениями из выбранной архитектуры.
+         * Убирает точки, если их код не найден в архитектуре.
+         * @param {Array} processedData - Массив точек с широтой, долготой и кодом.
+         * @param {Object} architecture - Сопоставление кодов с их значениями.
+         * @returns {Array} Обновлённый массив с заменённым третьим столбцом или отфильтрованными точками.
+         */
+        function replaceColumn(processedData, architecture) {
+            return processedData
+                .map(point => {
+                    const { latitude, longitude, code } = point;
+                    if (architecture[code]) {
+                        // Заменяем код, если найдена соответствующая архитектура
+                        return { latitude, longitude, code: architecture[code] };
+                    }
+                    // Возвращаем null для точек без соответствия
+                    return null;
+                })
+                .filter(point => point !== null); // Убираем null точки
+        }
+
+        /**
+         * Преобразует массив updatedData в требуемый формат для вставки.
+         * @param {Array} updatedData - Массив объектов с данными точек.
+         * @returns {Array} Массив строк в нужном формате.
+         */
+        function convertToInsertFormat(updatedData) {
+            return updatedData.map(point => {
+                const { code, latitude, longitude } = point;
+                return `_INSERT ${code} ${longitude},${latitude} 1 1 0`;
+            });
+        }
+
+        // Обработчик события для кнопки "Обработать"
+        document.getElementById('processingButton').addEventListener('click', () => {
+            const fileInput = document.getElementById('fileInput');
+            const resultText = document.getElementById('resultText');
+            const architecture = document.getElementById('architecture').value; // Получаем выбранную архитектуру
+
+            if (!fileInput.files.length) {
+                resultText.value = 'Пожалуйста, выберите файл.';
+                return;
+            }
+
+            const file = fileInput.files[0];
+
+            // Чтение содержимого файла
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const content = event.target.result;
+
+                // Валидация и логирование обработанных данных
+                const results = validateDocument(content);
+                const processedData = processFileContent(content);
+
+                // Заменяем коды в processedData с использованием выбранной архитектуры
+                const updatedData = replaceColumn(processedData, architectureData[architecture]);
+                console.log('Обновленные данные:', updatedData); // Логируем обновлённый массив
+
+                const formattedData = convertToInsertFormat(updatedData);
+                console.log(formattedData.join("\n")); // Выводим каждую строку в требуемом формате
+
+                // Отображаем результаты валидации и выбранную архитектуру
+                resultText.value = `Выбранная архитектура: ${architecture}\n\n` + results.join('\n') + `\n\n` + formattedData.join('\n');
+            };
+
+            reader.onerror = function () {
+                resultText.value = 'Ошибка при чтении файла.';
+            };
+
+            reader.readAsText(file);
+            document.getElementById('downloadButton').style.display = 'block';
+        });
+
+        // Обработчик события для кнопки "Скачать"
+        document.getElementById('downloadButton').addEventListener('click', () => {
+            const resultText = document.getElementById('resultText').value;
+
+            if (!resultText.trim()) {
+                alert('Нет данных для сохранения. Сначала обработайте файл.');
+                return;
+            }
+
+            // Разделяем результат на части и находим данные для скрипта
+            const dataStartIndex = resultText.indexOf('_INSERT');
+            if (dataStartIndex === -1) {
+                alert('Нет данных для создания скрипта.');
+                return;
+            }
+
+            const formattedData = resultText.slice(dataStartIndex).split('\n');
+
+            // Получаем текущую дату и время для имени файла
+            const now = new Date();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const timestamp = `${month}-${day} ${hours}:${minutes}:${seconds}`; // Формат MM-DD HH:MM:SS
+            const fileName = `_script_OD_${timestamp.replace(/[: ]/g, '_')}.scr`;
+
+            // Создаем содержимое файла
+            const fileContent = formattedData.join('\r\n');
+
+            // Создаем объект Blob
+            const blob = new Blob([fileContent], { type:  'text/plain; charset=utf-8;'  });
+
+            // Создаем ссылку для скачивания
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+
+            // Автоматически кликаем по ссылке для скачивания
+            link.click();
+
+            // Очищаем объект URL после использования
+            URL.revokeObjectURL(link.href);
+
+            alert('Скрипт успешно создан и загружен.');
+        });
+    </script>
+</body>
+
+</html>
